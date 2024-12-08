@@ -1,61 +1,68 @@
-from langchain.llms.base import LLM
+import os
+import streamlit as st
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain.utilities import WikipediaAPIWrapper
+from langchain.llms.base import LLM
 import requests
-import streamlit as st
 
-# Hugging Face API details
+# Constants
 API_URL = "https://api-inference.huggingface.co/models/google/gemma-7b"
-headers = {
+HEADERS = {
     "authorization": f"Bearer {st.secrets['auth_token']}",
     "content-type": "application/json"
 }
 
 # Function to query Hugging Face API
 def query_huggingface(prompt):
+    """Send a text prompt to the Hugging Face API and return the response."""
     payload = {
         "inputs": prompt,
         "parameters": {
-            "max_length": 512,
-            "temperature": 0.1,
+            "max_length": 200,
+            "temperature": 0.2,
             "top_k": 50,
             "top_p": 0.9
         }
     }
-    response = requests.post(API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    result = response.json()
-    return result[0]["generated_text"] if result else "Error generating response."
+    try:
+        response = requests.post(API_URL, headers=HEADERS, json=payload)
+        response.raise_for_status()
+        result = response.json()
+        return result[0]["generated_text"] if result else "Error generating response."
+    except requests.exceptions.RequestException as e:
+        st.error(f"API Error: {e}")
+        return "Error fetching response."
 
-# Custom LLM class for Hugging Face API
+# Custom Hugging Face LLM class
 class HuggingFaceLLM(LLM):
     def _call(self, prompt: str, stop: None = None) -> str:
         return query_huggingface(prompt)
-    
+
     @property
     def _identifying_params(self):
         return {"model": "google/gemma-7b"}
-    
+
     @property
     def _llm_type(self):
         return "custom_huggingface"
 
-# Initialize custom LLM
+# Initialize LLM
 llm = HuggingFaceLLM()
 
-# Prompt templates
+# Prompt Templates
 title_template = PromptTemplate(
     input_variables=["topic"],
-    template="Write a concise and engaging YouTube video title about {topic}."
+    template="Generate a concise and engaging YouTube video title about: {topic}."
 )
 
 script_template = PromptTemplate(
     input_variables=["title", "wikipedia_research"],
     template=(
-        "Write a detailed, structured YouTube video script based on this title: {title}. "
-        "Incorporate the following Wikipedia research: {wikipedia_research}. Make it clear and engaging."
+        "Write a clear, structured YouTube video script based on this title: {title}. "
+        "Use the following Wikipedia research: {wikipedia_research}. "
+        "Make it informative, engaging, and easy to follow."
     )
 )
 
@@ -66,34 +73,62 @@ script_memory = ConversationBufferMemory(input_key="title", memory_key="chat_his
 # Wikipedia utility
 wiki = WikipediaAPIWrapper()
 
-# Streamlit UI
-st.title("🦜🔗 YouTube Video Generator with Hugging Face")
+# Streamlit App Layout
+st.sidebar.image("https://huggingface.co/front/assets/huggingface_logo.svg", width=150)
+st.sidebar.title("Navigation")
+mode = st.sidebar.radio("Choose Mode", options=["Content Generator", "Test API"], index=0)
 
-prompt = st.text_input("Enter a topic for YouTube content:", placeholder="E.g., Artificial Intelligence")
+# Main Content Section
+if mode == "Content Generator":
+    st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>🎥 YouTube Content Generator</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #555;'>Generate YouTube video titles and scripts effortlessly using Hugging Face's Gemma model.</p>", unsafe_allow_html=True)
 
-if prompt:
-    # Title generation
-    title_chain = LLMChain(llm=llm, prompt=title_template, memory=title_memory, verbose=True)
-    title = title_chain.run(prompt)
+    prompt = st.text_input("Enter a topic for YouTube content:", placeholder="E.g., Artificial Intelligence")
 
-    # Wikipedia research
-    wiki_research = wiki.run(prompt)
+    if prompt:
+        with st.spinner("Generating YouTube Title..."):
+            title_query = title_template.format(topic=prompt)
+            title = query_huggingface(title_query)
+            title_memory.save_context({"topic": prompt}, {"generated_title": title})
+            st.success("Title generated successfully!")
 
-    # Script generation
-    script_chain = LLMChain(llm=llm, prompt=script_template, memory=script_memory, verbose=True)
-    script = script_chain.run(title=title, wikipedia_research=wiki_research)
+        with st.spinner("Fetching Wikipedia Research..."):
+            wiki_research = wiki.run(prompt)
+            st.success("Wikipedia research completed!")
 
-    # Display results
-    st.subheader("Generated YouTube Title")
-    st.write(title)
+        with st.spinner("Generating YouTube Script..."):
+            script_query = script_template.format(title=title, wikipedia_research=wiki_research)
+            script = query_huggingface(script_query)
+            script_memory.save_context({"title": title}, {"generated_script": script})
+            st.success("Script generated successfully!")
 
-    st.subheader("Generated YouTube Script")
-    st.write(script)
+        # Display Results
+        st.subheader("Generated YouTube Title:")
+        st.markdown(f"<h3 style='color: #2ECC71;'>{title}</h3>", unsafe_allow_html=True)
 
-    # Expanders for history
-    with st.expander("Title History"):
-        st.write(title_memory.buffer)
-    with st.expander("Script History"):
-        st.write(script_memory.buffer)
-    with st.expander("Wikipedia Research"):
-        st.write(wiki_research)
+        st.subheader("Generated YouTube Script:")
+        st.markdown(f"<div style='background-color: #FAFAD2; color: #333; padding: 15px; border-radius: 10px;'>{script}</div>", unsafe_allow_html=True)
+
+        # Expanders for History
+        with st.expander("Title History"):
+            st.write(title_memory.buffer)
+
+        with st.expander("Script History"):
+            st.write(script_memory.buffer)
+
+        with st.expander("Wikipedia Research"):
+            st.write(wiki_research)
+
+# Test API Section
+elif mode == "Test API":
+    st.markdown("<h1 style='text-align: center; color: #4B9CD3;'>🧪 Test Hugging Face API</h1>", unsafe_allow_html=True)
+    test_query = st.text_input("Enter a query to test the API:", placeholder="E.g., What is the capital of France?")
+
+    if st.button("Submit Query"):
+        with st.spinner("Testing API..."):
+            try:
+                response = query_huggingface(test_query)
+                st.subheader("API Response:")
+                st.markdown(f"<div style='background-color: #E8F8F5; color: #333; padding: 15px; border-radius: 10px;'>{response}</div>", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error: {e}")
