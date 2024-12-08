@@ -97,7 +97,7 @@ if run_main_code == "Main Code":
         st.markdown(f"<h3 style='color: #2ECC71;'>{title}</h3>", unsafe_allow_html=True)
 
         st.subheader("Generated YouTube Script:")
-        st.markdown(f"<div style='background-color: #F0F8FF; padding: 10px;'>{script}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background-color: #F5F5F5; color: #333; padding: 10px;'>{script}</div>", unsafe_allow_html=True)
 
         # Expanders for history
         with st.expander('Title History'):
