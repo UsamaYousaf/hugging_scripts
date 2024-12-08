@@ -12,8 +12,8 @@ HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
 # Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/google/gemma-7b"
-headers = {"Authorization": f"Bearer {HUGGINGFACEHUB_API_TOKEN}"}
-
+#headers = {"Authorization": f"Bearer {HUGGINGFACEHUB_API_TOKEN}"}
+headers = {"Authorization": st.secrets["auth_token"]}
 # Function to query Hugging Face API
 def query_huggingface(prompt):
     payload = {
