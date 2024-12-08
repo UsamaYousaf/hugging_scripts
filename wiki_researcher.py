@@ -15,15 +15,14 @@ headers = {
 }
 
 # Function to query Hugging Face API
-def query_huggingface(prompt):
+def query_huggingface(prompt, temperature=0.1):
     payload = {
         "inputs": prompt,
         "parameters": {
             "max_length": 512,
-            "temperature": 0.1
+            "temperature": temperature
         }
     }
-    print(headers)
     response = requests.post(API_URL, headers=headers, json=payload)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response.json()
@@ -35,9 +34,10 @@ run_main_code = st.sidebar.radio(
     index=0
 )
 
-# Add a logo and title to the sidebar
+# Sidebar controls
 st.sidebar.image("https://huggingface.co/front/assets/huggingface_logo.svg", width=150)
 st.sidebar.title("Hugging Face Explorer")
+temperature = st.sidebar.slider("Set Temperature", 0.1, 1.0, 0.7)
 
 if run_main_code == "Main Code":
     # App framework
@@ -72,7 +72,7 @@ if run_main_code == "Main Code":
         with st.spinner("Generating YouTube Title..."):
             # Generate a title using Hugging Face API
             title_query = title_template.format(topic=prompt)
-            title_response = query_huggingface(title_query)
+            title_response = query_huggingface(title_query, temperature)
             title = title_response[0]["generated_text"] if title_response else "Error generating title"
             st.success("Title generated!")
 
@@ -83,7 +83,7 @@ if run_main_code == "Main Code":
         with st.spinner("Generating YouTube Script..."):
             # Generate a script using Hugging Face API
             script_query = script_template.format(title=title, wikipedia_research=wiki_research)
-            script_response = query_huggingface(script_query)
+            script_response = query_huggingface(script_query, temperature)
             script = script_response[0]["generated_text"] if script_response else "Error generating script"
             st.success("Script generated!")
 
@@ -98,6 +98,36 @@ if run_main_code == "Main Code":
 
         st.subheader("Generated YouTube Script:")
         st.markdown(f"<div style='background-color: #F5F5F5; color: #333; padding: 10px;'>{script}</div>", unsafe_allow_html=True)
+
+        # Summarization Feature
+        if st.button("Summarize Script"):
+            with st.spinner("Summarizing script..."):
+                summary_response = query_huggingface(f"Summarize the following script:\n{script}", temperature)
+                summary = summary_response[0]["generated_text"] if summary_response else "Error summarizing script"
+                st.write(f"**Summary:** {summary}")
+
+        # Sentiment Analysis
+        if st.button("Analyze Sentiment"):
+            with st.spinner("Analyzing sentiment..."):
+                sentiment_response = query_huggingface(f"Analyze the sentiment of this text:\n{script}", temperature)
+                sentiment = sentiment_response[0]["generated_text"] if sentiment_response else "Error analyzing sentiment"
+                st.write(f"**Sentiment Analysis Result:** {sentiment}")
+
+        # Keyword Extraction
+        if st.button("Extract Keywords"):
+            with st.spinner("Extracting keywords..."):
+                keywords_response = query_huggingface(f"Extract key topics and keywords:\n{script}", temperature)
+                keywords = keywords_response[0]["generated_text"] if keywords_response else "Error extracting keywords"
+                st.write(f"**Keywords:** {keywords}")
+
+        # Language Translation
+        language = st.selectbox("Translate Script To:", ["French", "Spanish", "German"])
+        if st.button(f"Translate Script to {language}"):
+            with st.spinner(f"Translating script to {language}..."):
+                translation_prompt = f"Translate the following script to {language}:\n{script}"
+                translation_response = query_huggingface(translation_prompt, temperature)
+                translation = translation_response[0]["generated_text"] if translation_response else "Error translating script"
+                st.write(f"**Translated Script ({language}):**\n{translation}")
 
         # Expanders for history
         with st.expander('Title History'):
