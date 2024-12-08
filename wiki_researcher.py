@@ -14,7 +14,7 @@ import requests
 # Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/google/gemma-7b"
 #headers = {"Authorization": f"Bearer {HUGGINGFACEHUB_API_TOKEN}"}
-headersauth = {"authorization": st.secrets["auth_token"]}
+headersauth = {"authorization":"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" }
 # Function to query Hugging Face API
 def query_huggingface(prompt):
     payload = {
