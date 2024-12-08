@@ -33,7 +33,7 @@ def query_huggingface(prompt):
     return response.json()
 
 # App framework
-st.title('🦜🔗 Wiki Research with Hugging Face API')
+st.title(f"🦜🔗 Wiki Research with Hugging Face API {st.secrets['auth_token']}")
 prompt = st.text_input('Enter your prompt here')
 
 # Prompt templates
