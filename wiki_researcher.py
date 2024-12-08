@@ -29,12 +29,25 @@ def query_huggingface(prompt):
     return response.json()
 
 # Add a toggle to enable/disable main code
-run_main_code = st.checkbox("Run Main Code", value=False)
+run_main_code = st.sidebar.radio(
+    "Choose Mode",
+    options=["Main Code", "Test API"],
+    index=0
+)
 
-if run_main_code:
+# Add a logo and title to the sidebar
+st.sidebar.image("https://huggingface.co/front/assets/huggingface_logo.svg", width=150)
+st.sidebar.title("Hugging Face Explorer")
+
+if run_main_code == "Main Code":
     # App framework
-    st.title(f"🦜🔗 Wiki Research with Hugging Face API")
-    prompt = st.text_input('Enter your prompt here')
+    st.markdown(
+        """
+        <h1 style='text-align: center; color: #FF4B4B;'>🦜🔗 Wiki Research with Hugging Face API</h1>
+        """,
+        unsafe_allow_html=True
+    )
+    prompt = st.text_input('Enter your topic here:', placeholder="E.g., Artificial Intelligence")
 
     # Prompt templates
     title_template = PromptTemplate(
@@ -56,28 +69,35 @@ if run_main_code:
 
     # Generate and display content if there's a prompt
     if prompt:
-        # Generate a title using Hugging Face API
-        title_query = title_template.format(topic=prompt)
-        title_response = query_huggingface(title_query)
-        title = title_response[0]["generated_text"] if title_response else "Error generating title"
+        with st.spinner("Generating YouTube Title..."):
+            # Generate a title using Hugging Face API
+            title_query = title_template.format(topic=prompt)
+            title_response = query_huggingface(title_query)
+            title = title_response[0]["generated_text"] if title_response else "Error generating title"
+            st.success("Title generated!")
+
+        with st.spinner("Fetching Wikipedia Research..."):
+            wiki_research = wiki.run(prompt)
+            st.success("Research completed!")
+
+        with st.spinner("Generating YouTube Script..."):
+            # Generate a script using Hugging Face API
+            script_query = script_template.format(title=title, wikipedia_research=wiki_research)
+            script_response = query_huggingface(script_query)
+            script = script_response[0]["generated_text"] if script_response else "Error generating script"
+            st.success("Script generated!")
 
         # Update title memory
         title_memory.save_context({'topic': prompt}, {'generated_title': title})
-
-        # Wikipedia research
-        wiki_research = wiki.run(prompt)
-
-        # Generate a script using Hugging Face API
-        script_query = script_template.format(title=title, wikipedia_research=wiki_research)
-        script_response = query_huggingface(script_query)
-        script = script_response[0]["generated_text"] if script_response else "Error generating script"
-
         # Update script memory
         script_memory.save_context({'title': title}, {'generated_script': script})
 
         # Display results
-        st.write(f"**Title:** {title}")
-        st.write(f"**Script:**\n{script}")
+        st.subheader("Generated YouTube Title:")
+        st.markdown(f"<h3 style='color: #2ECC71;'>{title}</h3>", unsafe_allow_html=True)
+
+        st.subheader("Generated YouTube Script:")
+        st.markdown(f"<div style='background-color: #F0F8FF; padding: 10px;'>{script}</div>", unsafe_allow_html=True)
 
         # Expanders for history
         with st.expander('Title History'):
@@ -88,7 +108,12 @@ if run_main_code:
             st.info(wiki_research)
 else:
     # Test InferenceClient API
-    st.title("Testing Hugging Face InferenceClient API")
+    st.markdown(
+        """
+        <h1 style='text-align: center; color: #4B9CD3;'>Testing Hugging Face InferenceClient API</h1>
+        """,
+        unsafe_allow_html=True
+    )
     
     # Initialize InferenceClient with API key from secrets
     api_key = st.secrets["auth_token"]
@@ -98,21 +123,29 @@ else:
     messages = [
         {
             "role": "user",
-            "content": "What is the capital of France?"
+            "content": st.text_input(
+                "Enter a query for the API:",
+                placeholder="E.g., What is the capital of France?"
+            )
         }
     ]
 
-    try:
-        # Make an API call
-        completion = client.chat.completions.create(
-            model="google/gemma-7b-it",
-            messages=messages,
-            max_tokens=500
-        )
+    if st.button("Submit Query"):
+        try:
+            # Make an API call
+            with st.spinner("Processing API Call..."):
+                completion = client.chat.completions.create(
+                    model="google/gemma-7b-it",
+                    messages=messages,
+                    max_tokens=500
+                )
 
-        # Display the result
-        st.write("**Response:**")
-        st.write(completion.choices[0].message["content"])
-    except Exception as e:
-        # Handle errors gracefully
-        st.error(f"An error occurred: {e}")
+            # Display the result
+            st.subheader("API Response:")
+            st.markdown(
+                f"<div style='background-color: #E8F8F5; padding: 10px;'>{completion.choices[0].message['content']}</div>",
+                unsafe_allow_html=True
+            )
+        except Exception as e:
+            # Handle errors gracefully
+            st.error(f"An error occurred: {e}")
