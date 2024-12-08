@@ -24,6 +24,7 @@ def query_huggingface(prompt):
             "temperature": 0.1
         }
     }
+    print(headersauth)
     response = requests.post(API_URL, headers=headersauth, json=payload)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response.json()
