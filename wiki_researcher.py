@@ -3,7 +3,7 @@ import streamlit as st
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
-from langchain.utilities import WikipediaAPIWrapper
+from langchain.utilities import WikipediaAPIWrapper as wiki
 
 import requests
 #from api_key import hugging_face_token
@@ -48,7 +48,7 @@ title_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_hist
 script_memory = ConversationBufferMemory(input_key='title', memory_key='chat_history')
 
 # Wikipedia utility
-wiki = WikipediaAPIWrapper()
+wiki = wiki.WikipediaAPIWrapper()
 
 # Generate and display content if there's a prompt
 if prompt:
