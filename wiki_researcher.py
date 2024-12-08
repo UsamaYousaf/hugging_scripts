@@ -8,7 +8,7 @@ from langchain.utilities import WikipediaAPIWrapper
 import requests
 #from api_key import hugging_face_token
 
-os.environ['HUGGINGFACEHUB_API_TOKEN'] = hugging_face_token
+#os.environ['HUGGINGFACEHUB_API_TOKEN'] = hugging_face_token
 HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
 # Hugging Face API details
