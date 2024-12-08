@@ -9,12 +9,12 @@ import requests
 #from api_key import hugging_face_token
 
 #os.environ['HUGGINGFACEHUB_API_TOKEN'] = hugging_face_token
-HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+#HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
 # Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/google/gemma-7b"
 #headers = {"Authorization": f"Bearer {HUGGINGFACEHUB_API_TOKEN}"}
-headers = {"Authorization": st.secrets["auth_token"]}
+headersauth = {"authorization": st.secrets["auth_token"]}
 # Function to query Hugging Face API
 def query_huggingface(prompt):
     payload = {
@@ -24,7 +24,7 @@ def query_huggingface(prompt):
             "temperature": 0.1
         }
     }
-    response = requests.post(API_URL, headers=headers, json=payload)
+    response = requests.post(API_URL, headers=headersauth, json=payload)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response.json()
 
