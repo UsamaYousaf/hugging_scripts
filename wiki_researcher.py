@@ -9,8 +9,6 @@ import requests
 
 # Constants
 API_URL = "https://api-inference.huggingface.co/models/google/gemma-7b"
-
-# Set up headers for Hugging Face API
 headers = {
     "authorization": f"Bearer {st.secrets['auth_token']}",
     "content-type": "application/json"
@@ -22,8 +20,11 @@ def query_huggingface(prompt):
     payload = {
         "inputs": prompt,
         "parameters": {
-            "max_length": 512,
-            "temperature": 0.1
+            "max_length": 200,
+            "temperature": 0.2,
+            "repetition_penalty": 1.2,
+            "top_k": 50,
+            "top_p": 0.9
         }
     }
     try:
@@ -33,6 +34,19 @@ def query_huggingface(prompt):
     except requests.exceptions.RequestException as e:
         st.error(f"API Error: {e}")
         return None
+
+# Preprocess Wikipedia research
+def preprocess_wikipedia_research(research):
+    """Condense Wikipedia research to the first 3-4 sentences."""
+    sentences = research.split(". ")
+    return ". ".join(sentences[:4]) + "."
+
+# Validate model outputs
+def validate_output(output):
+    """Ensure the generated output is clear and free of irrelevant content."""
+    if "double comparison" in output or "unclear comparison" in output:
+        return "Error: The model generated irrelevant content. Please try again with a refined prompt."
+    return output
 
 # Sidebar Navigation
 st.sidebar.image("https://huggingface.co/front/assets/huggingface_logo.svg", width=150)
@@ -45,9 +59,15 @@ if mode == "Generate Content":
     prompt = st.text_input('Enter a topic for YouTube content:', placeholder="E.g., Artificial Intelligence")
 
     # Prompt Templates
-    title_template = PromptTemplate(input_variables=['topic'], template='Generate a YouTube video title about {topic}')
-    script_template = PromptTemplate(input_variables=['title', 'wikipedia_research'],
-                                      template='Create a YouTube video script based on the title: {title} and the following Wikipedia research: {wikipedia_research}')
+    title_template = PromptTemplate(input_variables=['topic'], template='Generate a concise and engaging YouTube video title about: {topic}')
+    script_template = PromptTemplate(
+        input_variables=['title', 'wikipedia_research'],
+        template=(
+            "Write a clear, structured YouTube video script based on this title: {title}. "
+            "Use the following Wikipedia research: {wikipedia_research}. "
+            "Make it informative, engaging, and free of repetition or unrelated details."
+        )
+    )
 
     # Memory for Conversations
     title_memory = ConversationBufferMemory(input_key='topic', memory_key='chat_history')
@@ -61,18 +81,18 @@ if mode == "Generate Content":
             # Generate Title
             title_query = title_template.format(topic=prompt)
             title_response = query_huggingface(title_query)
-            title = title_response[0]["generated_text"] if title_response else "Error generating title"
+            title = validate_output(title_response[0]["generated_text"] if title_response else "Error generating title")
             st.success("Title generated successfully!")
             title_memory.save_context({'topic': prompt}, {'generated_title': title})
 
             # Fetch Wikipedia Research
-            wiki_research = wiki.run(prompt)
+            wiki_research = preprocess_wikipedia_research(wiki.run(prompt))
             st.success("Wikipedia research completed!")
 
             # Generate Script
             script_query = script_template.format(title=title, wikipedia_research=wiki_research)
             script_response = query_huggingface(script_query)
-            script = script_response[0]["generated_text"] if script_response else "Error generating script"
+            script = validate_output(script_response[0]["generated_text"] if script_response else "Error generating script")
             st.success("Script generated successfully!")
             script_memory.save_context({'title': title}, {'generated_script': script})
 
