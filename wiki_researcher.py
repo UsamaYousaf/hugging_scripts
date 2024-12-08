@@ -28,7 +28,7 @@ def query_huggingface(prompt):
         }
     }
     print(headers)
-    response = requests.post(API_URL, headers=headers, json=payload)
+    response = requests.post(API_URL, headers=headers)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response.json()
 
