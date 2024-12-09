@@ -15,13 +15,13 @@ HEADERS = {
 }
 
 # Function to query Hugging Face API
-def query_huggingface(prompt):
+def query_huggingface(prompt, temperature):
     """Send a text prompt to the Hugging Face API and return the response."""
     payload = {
         "inputs": prompt,
         "parameters": {
             "max_length": 200,
-            "temperature": 0.2,
+            "temperature": temperature,  # Use the user-selected temperature
             "top_k": 50,
             "top_p": 0.9
         }
@@ -74,9 +74,22 @@ script_memory = ConversationBufferMemory(input_key="title", memory_key="chat_his
 wiki = WikipediaAPIWrapper()
 
 # Streamlit App Layout
-st.sidebar.image("https://huggingface.co/front/assets/huggingface_logo.svg", width=150)
 st.sidebar.title("Navigation")
 mode = st.sidebar.radio("Choose Mode", options=["Content Generator", "Test API"], index=0)
+
+# Temperature Slider
+st.sidebar.markdown("### Temperature Selection")
+temperature = st.sidebar.slider(
+    "Select Temperature (Creativity Level)",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.7,  # Default temperature
+    step=0.1,
+    help=(
+        "Low temperature (0.1-0.4) results in focused, deterministic outputs. "
+        "High temperature (0.8-1.0) produces more creative but less predictable responses."
+    )
+)
 
 # Main Content Section
 if mode == "Content Generator":
@@ -88,7 +101,7 @@ if mode == "Content Generator":
     if prompt:
         with st.spinner("Generating YouTube Title..."):
             title_query = title_template.format(topic=prompt)
-            title = query_huggingface(title_query)
+            title = query_huggingface(title_query, temperature)
             title_memory.save_context({"topic": prompt}, {"generated_title": title})
             st.success("Title generated successfully!")
 
@@ -98,7 +111,7 @@ if mode == "Content Generator":
 
         with st.spinner("Generating YouTube Script..."):
             script_query = script_template.format(title=title, wikipedia_research=wiki_research)
-            script = query_huggingface(script_query)
+            script = query_huggingface(script_query, temperature)
             script_memory.save_context({"title": title}, {"generated_script": script})
             st.success("Script generated successfully!")
 
@@ -127,7 +140,7 @@ elif mode == "Test API":
     if st.button("Submit Query"):
         with st.spinner("Testing API..."):
             try:
-                response = query_huggingface(test_query)
+                response = query_huggingface(test_query, temperature)
                 st.subheader("API Response:")
                 st.markdown(f"<div style='background-color: #E8F8F5; color: #333; padding: 15px; border-radius: 10px;'>{response}</div>", unsafe_allow_html=True)
             except Exception as e:
