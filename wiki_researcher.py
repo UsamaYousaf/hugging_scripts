@@ -21,7 +21,7 @@ def query_huggingface(prompt, temperature):
         "inputs": prompt,
         "parameters": {
             "max_length": 200,
-            "temperature": temperature,  # Use the user-selected temperature
+            "temperature": temperature,
             "top_k": 50,
             "top_p": 0.9
         }
@@ -38,7 +38,7 @@ def query_huggingface(prompt, temperature):
 # Custom Hugging Face LLM class
 class HuggingFaceLLM(LLM):
     def _call(self, prompt: str, stop: None = None) -> str:
-        return query_huggingface(prompt)
+        return query_huggingface(prompt, temperature=0.7)
 
     @property
     def _identifying_params(self):
@@ -73,6 +73,10 @@ script_memory = ConversationBufferMemory(input_key="title", memory_key="chat_his
 # Wikipedia utility
 wiki = WikipediaAPIWrapper()
 
+# Chains
+title_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, memory=title_memory)
+script_chain = LLMChain(llm=llm, prompt=script_template, verbose=True, memory=script_memory)
+
 # Streamlit App Layout
 st.sidebar.title("Navigation")
 mode = st.sidebar.radio("Choose Mode", options=["Content Generator", "Test API"], index=0)
@@ -83,7 +87,7 @@ temperature = st.sidebar.slider(
     "Select Temperature (Creativity Level)",
     min_value=0.0,
     max_value=1.0,
-    value=0.7,  # Default temperature
+    value=0.7,
     step=0.1,
     help=(
         "Low temperature (0.1-0.4) results in focused, deterministic outputs. "
@@ -100,9 +104,7 @@ if mode == "Content Generator":
 
     if prompt:
         with st.spinner("Generating YouTube Title..."):
-            title_query = title_template.format(topic=prompt)
-            title = query_huggingface(title_query, temperature)
-            title_memory.save_context({"topic": prompt}, {"generated_title": title})
+            title = title_chain.run({"topic": prompt})
             st.success("Title generated successfully!")
 
         with st.spinner("Fetching Wikipedia Research..."):
@@ -110,9 +112,7 @@ if mode == "Content Generator":
             st.success("Wikipedia research completed!")
 
         with st.spinner("Generating YouTube Script..."):
-            script_query = script_template.format(title=title, wikipedia_research=wiki_research)
-            script = query_huggingface(script_query, temperature)
-            script_memory.save_context({"title": title}, {"generated_script": script})
+            script = script_chain.run({"title": title, "wikipedia_research": wiki_research})
             st.success("Script generated successfully!")
 
         # Display Results
