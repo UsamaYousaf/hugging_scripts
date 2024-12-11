@@ -1,3 +1,4 @@
+# Import necessary libraries
 import os
 import streamlit as st
 from langchain.prompts import PromptTemplate
@@ -7,36 +8,48 @@ from langchain.utilities import WikipediaAPIWrapper
 from langchain.llms.base import LLM
 import requests
 
-# Constants
+# Constants for Hugging Face API
+# TODO: Add your Hugging Face API key in the Streamlit secrets file (as 'auth_token').
+# The API key can be generated on the Hugging Face hub.
 API_URL = "https://api-inference.huggingface.co/models/google/gemma-7b"
 HEADERS = {
-    "authorization": f"Bearer {st.secrets['auth_token']}",
-    "content-type": "application/json"
+    "authorization": f"Bearer {st.secrets['auth_token']}",  # Authorization for the API
+    "content-type": "application/json"  # Content type for the API requests
 }
 
-# Function to query Hugging Face API
+# Function to query the Hugging Face API
 def query_huggingface(prompt, temperature):
-    """Send a text prompt to the Hugging Face API and return the response."""
+    """
+    Sends a text prompt to the Hugging Face API and returns the response.
+    Parameters:
+        prompt (str): The text prompt to generate a response for.
+        temperature (float): The creativity level for text generation (0.0 to 1.0).
+    Returns:
+        str: Generated text or an error message.
+    """
     payload = {
         "inputs": prompt,
         "parameters": {
-            "max_length": 200,
-            "temperature": temperature,
-            "top_k": 50,
-            "top_p": 0.9
+            "max_length": 200,  # Maximum length of the generated text
+            "temperature": temperature,  # Temperature for creativity
+            "top_k": 50,  # Number of top tokens considered for sampling
+            "top_p": 0.9  # Nucleus sampling parameter
         }
     }
     try:
-        response = requests.post(API_URL, headers=HEADERS, json=payload)
-        response.raise_for_status()
+        response = requests.post(API_URL, headers=HEADERS, json=payload)  # Send request to API
+        response.raise_for_status()  # Check for HTTP errors
         result = response.json()
-        return result[0]["generated_text"] if result else "Error generating response."
+        return result[0]["generated_text"] if result else "Error generating response."  # Return generated text
     except requests.exceptions.RequestException as e:
-        st.error(f"API Error: {e}")
+        st.error(f"API Error: {e}")  # Handle API errors gracefully
         return "Error fetching response."
 
-# Custom Hugging Face LLM class
+# Custom Hugging Face LLM class for LangChain integration
 class HuggingFaceLLM(LLM):
+    """
+    Custom class to integrate Hugging Face API as a LangChain LLM.
+    """
     def _call(self, prompt: str, stop: None = None) -> str:
         return query_huggingface(prompt, temperature=0.7)
 
@@ -48,17 +61,17 @@ class HuggingFaceLLM(LLM):
     def _llm_type(self):
         return "custom_huggingface"
 
-# Initialize LLM
+# Initialize the custom LLM
 llm = HuggingFaceLLM()
 
-# Prompt Templates
+# Prompt templates for generating YouTube content
 title_template = PromptTemplate(
-    input_variables=["topic"],
+    input_variables=["topic"],  # Input variable for the topic
     template="Generate a concise and engaging YouTube video title about: {topic}."
 )
 
 script_template = PromptTemplate(
-    input_variables=["title", "wikipedia_research"],
+    input_variables=["title", "wikipedia_research"],  # Input variables for the title and Wikipedia research
     template=(
         "Write a clear, structured YouTube video script based on this title: {title}. "
         "Use the following Wikipedia research: {wikipedia_research}. "
@@ -66,28 +79,28 @@ script_template = PromptTemplate(
     )
 )
 
-# Memory
-title_memory = ConversationBufferMemory(input_key="topic", memory_key="chat_history")
-script_memory = ConversationBufferMemory(input_key="title", memory_key="chat_history")
+# Memory for conversation history
+title_memory = ConversationBufferMemory(input_key="topic", memory_key="chat_history")  # Stores topic history
+script_memory = ConversationBufferMemory(input_key="title", memory_key="chat_history")  # Stores title history
 
-# Wikipedia utility
+# Wikipedia utility for fetching research
 wiki = WikipediaAPIWrapper()
 
-# Chains
+# Chains for managing tasks
 title_chain = LLMChain(llm=llm, prompt=title_template, verbose=True, memory=title_memory)
 script_chain = LLMChain(llm=llm, prompt=script_template, verbose=True, memory=script_memory)
 
-# Streamlit App Layout
+# Streamlit Sidebar Layout
 st.sidebar.title("Navigation")
 mode = st.sidebar.radio("Choose Mode", options=["Content Generator", "Test API"], index=0)
 
-# Temperature Slider
+# Slider for temperature adjustment
 st.sidebar.markdown("### Temperature Selection")
 temperature = st.sidebar.slider(
     "Select Temperature (Creativity Level)",
     min_value=0.0,
     max_value=1.0,
-    value=0.7,
+    value=0.7,  # Default temperature
     step=0.1,
     help=(
         "Low temperature (0.1-0.4) results in focused, deterministic outputs. "
@@ -97,32 +110,37 @@ temperature = st.sidebar.slider(
 
 # Main Content Section
 if mode == "Content Generator":
+    # Title and description
     st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>🎥 YouTube Content Generator</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #555;'>Generate YouTube video titles and scripts effortlessly using Hugging Face's Gemma model.</p>", unsafe_allow_html=True)
 
+    # Input for the topic
     prompt = st.text_input("Enter a topic for YouTube content:", placeholder="E.g., Artificial Intelligence")
 
     if prompt:
+        # Generate title
         with st.spinner("Generating YouTube Title..."):
             title = title_chain.run({"topic": prompt})
             st.success("Title generated successfully!")
 
+        # Fetch Wikipedia research
         with st.spinner("Fetching Wikipedia Research..."):
             wiki_research = wiki.run(prompt)
             st.success("Wikipedia research completed!")
 
+        # Generate script
         with st.spinner("Generating YouTube Script..."):
             script = script_chain.run({"title": title, "wikipedia_research": wiki_research})
             st.success("Script generated successfully!")
 
-        # Display Results
+        # Display results
         st.subheader("Generated YouTube Title:")
         st.markdown(f"<h3 style='color: #2ECC71;'>{title}</h3>", unsafe_allow_html=True)
 
         st.subheader("Generated YouTube Script:")
         st.markdown(f"<div style='background-color: #FAFAD2; color: #333; padding: 15px; border-radius: 10px;'>{script}</div>", unsafe_allow_html=True)
 
-        # Expanders for History
+        # Expanders for history
         with st.expander("Title History"):
             st.write(title_memory.buffer)
 
@@ -134,10 +152,12 @@ if mode == "Content Generator":
 
 # Test API Section
 elif mode == "Test API":
+    # Title and description
     st.markdown("<h1 style='text-align: center; color: #4B9CD3;'>🧪 Test Hugging Face API</h1>", unsafe_allow_html=True)
     test_query = st.text_input("Enter a query to test the API:", placeholder="E.g., What is the capital of France?")
 
     if st.button("Submit Query"):
+        # Test API query
         with st.spinner("Testing API..."):
             try:
                 response = query_huggingface(test_query, temperature)
