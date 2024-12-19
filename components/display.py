@@ -1,3 +1,4 @@
+import streamlit as st
 def display_results(title, script, wiki_research):
     st.subheader("Generated YouTube Title:")
     st.markdown(f"<h3 style='color: #2ECC71;'>{title}</h3>", unsafe_allow_html=True)
