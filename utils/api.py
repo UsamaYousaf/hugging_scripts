@@ -1,5 +1,5 @@
-from urllib import request
 import streamlit as st
+import requests
 def query_huggingface(prompt, temperature):
     API_URL = "https://api-inference.huggingface.co/models/google/gemma-7b"
     HEADERS = {
@@ -15,7 +15,7 @@ def query_huggingface(prompt, temperature):
             "top_p": 0.9
         }
     }
-    response = request.post(API_URL, headers=HEADERS, json=payload)
+    response = requests.post(API_URL, headers=HEADERS, json=payload)
     response.raise_for_status()
     result = response.json()
     return result[0]["generated_text"] if result else "Error generating response."
